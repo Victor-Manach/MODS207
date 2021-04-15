@@ -1,2 +1,2 @@
 # MODS207
-Project in applied economics
+School project for the MODS207: project in applied economics course at Télécom Paris.
