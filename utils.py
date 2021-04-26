@@ -4,20 +4,22 @@ import pandas as pd
 from lxml import html
 import re
 import time
+import json
+import urllib
 
 full_profile = 'https://www.peopleperhour.com/freelancer/design/maria-experienced-team-of-graphic-wjawjq'
 incomplete_profile = 'https://www.peopleperhour.com/freelancer/writing-translation/lupin-vivian-proofreader-editor-and-artist-qvxnxmm'
 
-def guess_gender(rev: list) -> str:
+def guess_gender_from_reviews(rev: list) -> str:
     """
-    Determine gender of a person with a list of reviews
+    Determine the gender of a person with a list of reviews
     """
     genders = ['male', 'female']
     gender = None
     nb_male, nb_female = 0, 0
     male = ["he", "his", "him", "himself"]
     female = ["she", "her", "hers", "herself"]
-
+	# We start by using the reviews to determine the gender of the person
     for r in rev:
         for word in male:
             if re.compile(r'\b({0})\b'.format(word), flags=re.IGNORECASE).search(r) is not None:
@@ -30,6 +32,39 @@ def guess_gender(rev: list) -> str:
         if prob_male!=prob_female:
             gender = genders[np.argmax([prob_male, prob_female])]
     return gender
+
+def guess_gender_from_name(name: str) -> str:
+	"""
+	Determine the gender of a person with the name (we use a database with a list of names and the corresponding gender)
+	"""
+	name = name.capitalize()
+	nb_male, nb_female = 0, 0
+	gender = None
+	genders = ['male', 'female']
+	# the first query is to get the number of occurrences of the name in the database
+	where = urllib.parse.quote_plus("""
+	{
+		"Name": "%s"
+	}
+	""" % name)
+	url_count = 'https://parseapi.back4app.com/classes/Listofnames_Complete_List_Names?count=1&limit=0&where=%s' % where
+	headers = {
+		'X-Parse-Application-Id': '9Ly08smbo3R4nkHLl3dJCutvCWd9QA1wJAesk8MR', # This is your app's application id
+		'X-Parse-REST-API-Key': 'DwR8KujtRPBvdFIIs6vEFRtSkZYXjDRzXuHAvVdQ' # This is your app's REST API key
+	}
+	names_count = json.loads(requests.get(url_count, headers=headers).content.decode('utf-8')) # Here you have the data that you need
+	nb_names = names_count['count']
+	if nb_names != 0:
+		# the second query is to get the gender associated to each result, only if there are matching names in the database
+		url_names = 'https://parseapi.back4app.com/classes/Listofnames_Complete_List_Names?count=1&limit=%s&where=%s' % (str(nb_names), where)
+		data = json.loads(requests.get(url_names, headers=headers).content.decode('utf-8'))
+		results = data['results']
+		for res in results:
+			if res['Gender'] == 'male':
+				nb_male += 1
+		prob_male = nb_male/nb_names
+		gender = genders[np.argmax([prob_male, 1-prob_male])]
+	return gender
 
 def profile_info(url: str) -> dict:
 	"""
@@ -80,7 +115,7 @@ def profile_info(url: str) -> dict:
 			if len(full_review.xpath('.//div[@class="col-xs-10 right-col"]')) > 0:
 				review = full_review.xpath('.//div[@class="col-xs-10 right-col"]')[0].xpath('.//p')[0].text_content()
 				reviews.append(review)
-		gender = guess_gender(reviews)
+		gender = guess_gender_from_reviews(reviews)
 	else:
 		gender = None
 	info = {
@@ -100,8 +135,8 @@ def profile_info(url: str) -> dict:
 	}
 	return info
 	
-profile_info('https://www.peopleperhour.com/freelancer/writing-translation/translate_guru-expert-translation-spanish-french-wymjjm')
-
+# profile_info('https://www.peopleperhour.com/freelancer/writing-translation/translate_guru-expert-translation-spanish-french-wymjjm')
+guess_gender_from_name('maria')
 # Is it necessary to have all the reviews of the freelancer, or just the one that appears on the first page are enough?
 def profile_reviews(url: str) -> list:
 	resp = requests.get(url)
@@ -111,5 +146,5 @@ def profile_reviews(url: str) -> list:
 		return None
 	else:
 		
-		gender = guess_gender(review_list)
+		gender = guess_gender_from_reviews(review_list)
 		return gender
