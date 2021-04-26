@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 from lxml import html
 import re
+import time
 
 full_profile = 'https://www.peopleperhour.com/freelancer/design/maria-experienced-team-of-graphic-wjawjq'
 incomplete_profile = 'https://www.peopleperhour.com/freelancer/writing-translation/lupin-vivian-proofreader-editor-and-artist-qvxnxmm'
@@ -36,6 +37,9 @@ def profile_info(url: str) -> dict:
 	"""
 	reviews = []
 	resp = requests.get(url)
+	if resp.status_code!=200:
+		time.sleep(60)
+		resp = requests.get(url)
 	profile = html.fromstring(resp.text)
 	info = profile.xpath('.//div[@class="container member-info-container full-width"]')[0]
 	projects = info.xpath('.//div[@class="memStats-container "]')[0]
