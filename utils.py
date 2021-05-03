@@ -135,16 +135,21 @@ def profile_info(url: str) -> dict:
 	}
 	return info
 	
-# profile_info('https://www.peopleperhour.com/freelancer/writing-translation/translate_guru-expert-translation-spanish-french-wymjjm')
-guess_gender_from_name('maria')
-# Is it necessary to have all the reviews of the freelancer, or just the one that appears on the first page are enough?
-def profile_reviews(url: str) -> list:
-	resp = requests.get(url)
-	profile = html.fromstring(resp.text)
-	reviews = profile.xpath('//div[@class="reviews col-xs-12 col-sm-10 col-sm-push-1 col-md-12 col-md-push-0 listing clearfix"]')
-	if len(reviews.xpath('.//span[@class="empty"')) > 0:
-		return None
-	else:
-		
-		gender = guess_gender_from_reviews(review_list)
-		return gender
+
+def get_exchange_rates(currencies: list, date: str) -> dict:
+	"""
+	Determine the exchange rate between the base currency and USD on the specified date
+	The date must be of the format YYYY-MM-DD
+	"""
+	exchange_rates = {}
+	for base in currencies:
+		url = 'https://api.ratesapi.io/api/' + date + "?base=" + base + "&symbols=USD"
+		r=requests.get(url)
+		while r.status_code != 200:
+			time.sleep(60)
+			r=requests.get(url)
+		exchange_dict = r.json()
+		exchange_rate = exchange_dict['rates']['USD']
+		exchange_rates[base] = exchange_rate
+	return exchange_rates
+	
