@@ -108,7 +108,7 @@ def profile_info(url: str) -> dict:
 	nb_buyers = int(projects.xpath('.//div[@class="memberStats-item u-mgb--1"]')[0].xpath('.//div[@class="insights-value"]')[0].text_content().strip())
 	last_active = projects.xpath('.//div[@class="memberStats-item item-margin"]')[0].xpath('.//div[@class="insights-value"]')[0].text_content().strip()
 	
-	gender = get_gender(profile_ul)
+	gender = None
 	
 	info = {
 		'name': name,
@@ -134,15 +134,17 @@ def get_nb_projects_pages(profile_url: str) -> int:
 		resp = requests.get(profile_url)
 	
 	projects = html.fromstring(resp.text)
-	nb_projects_pages = projects.xpath('.//a[contains(@title, "go to page ")]')[-1].text_content()
-	
+	if len(projects.xpath('.//a[contains(@title, "go to page ")]')) > 0:
+		nb_projects_pages = projects.xpath('.//a[contains(@title, "go to page ")]')[-1].text_content()
+	else:
+		nb_projects_pages = 1
 	return int(nb_projects_pages)
 
 def get_gender(profile_url: str) -> str:
 	reviews = []
 	nb_pages = get_nb_projects_pages(profile_url)
+	nb_pages = min(nb_pages, 10) # it is too long to scrape all pages, so we limit to 10 pages max
 	for page in range(1,nb_pages+1):
-		print(profile_url+'?Projects_page={}'.format(page))
 		resp = requests.get(profile_url+'?Projects_page={}'.format(page))
 		while resp.status_code != 200:
 			time.sleep(60)
@@ -160,8 +162,6 @@ def get_gender(profile_url: str) -> str:
 	else:
 		gender = None
 	return gender
-		
-get_gender('https://www.peopleperhour.com/freelancer/business/teodora-popescu-certified-translator-digital-zamnnqz')
 		
 def get_exchange_rates(currencies: list, date: str) -> dict:
 	"""
